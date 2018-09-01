@@ -1,8 +1,16 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
 
 void main() => runApp(new MyApp());
 
 class MyApp extends StatelessWidget {
+
+
+
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -19,7 +27,8 @@ class MyApp extends StatelessWidget {
         // counter didn't reset back to zero; the application is not restarted.
         primarySwatch: Colors.green,
       ),
-      home: new MyHomePage(title: 'Flutter Demo Home Page'),
+      home: new MyHomePage(title: 'SG Traffic Situation'),
+
     );
   }
 }
@@ -55,6 +64,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _counter++;
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +114,168 @@ class _MyHomePageState extends State<MyHomePage> {
         tooltip: 'Increment',
         child: new Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
+      drawer: new sgtsDrawer(),
     );
   }
+}
+
+class TrafficNewsScreen extends StatelessWidget {
+
+  //dummy data
+  //final items = List<TrafficUpdateItem>.generate(10000, (i) => TrafficUpdateItem("Type $i", "desc $i", Location("100", "200")));
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+
+      appBar: AppBar(
+        title: Text('Traffic News'),
+      ),
+      /*body: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+            title: Text('${items[index].desc}'),
+            subtitle: Text('${items[index].type}'),
+          );
+        },
+      ),*/
+      body:
+      FutureBuilder<TrafficUpdateRaw>(
+        future: fetchPost(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            List trafficUpdates = filterUpdates(snapshot.data.raw);
+            return ListView.builder(
+              itemCount: trafficUpdates.length,
+              itemBuilder: (context,index) {
+                return ListTile(
+                  title: Text('${trafficUpdates[index]["Message"]}'),
+                  subtitle: Text('${trafficUpdates[index]["Type"]}'),
+                );
+              },
+            );
+          } else if (snapshot.hasError) {
+            return Text("${snapshot.error}");
+          }
+
+          // By default, show a loading spinner
+          return CircularProgressIndicator();
+        },
+      ),
+      drawer: new sgtsDrawer(),
+    );
+  }
+}
+
+class sgtsDrawer extends Drawer {
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      // Add a ListVie to the drawer. This ensures the user can scroll
+      // through the options in the Drawer if there isn't enough vertical
+      // space to fit everything.
+      child:
+      ListView(
+        // Important: Remove any padding from the ListView.
+        padding: EdgeInsets.zero,
+        children: <Widget>[
+          DrawerHeader(
+            child: Text('SGTS'),
+            decoration: BoxDecoration(
+              color: Colors.green,
+            ),
+          ),
+          ListTile(
+            title: Text('Traffic News'),
+            onTap: () {
+              // Update the state of the app
+              // ...
+              // Then close the drawer
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => TrafficNewsScreen()),
+              );
+            },
+          ),
+          ListTile(
+            title: Text('Filters'),
+            onTap: () {
+              // Update the state of the app
+              // ...
+              // Then close the drawer
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            title: Text('Settings'),
+            onTap: () {
+              // Update the state of the app
+              // ...
+              // Then close the drawer
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TrafficUpdateRaw {
+  final List raw;
+
+  TrafficUpdateRaw({this.raw});
+
+  factory TrafficUpdateRaw.fromJson(Map<String, dynamic> json) {
+    return TrafficUpdateRaw(
+        raw: json['value']
+    );
+  }
+}
+
+class TrafficUpdateItem {
+  final String type;
+  final String desc;
+  final Location loc;
+
+  TrafficUpdateItem({this.type, this.desc, this.loc});
+
+  factory TrafficUpdateItem.fromJson(Map<String, dynamic> json) {
+    return TrafficUpdateItem(
+      type: json['Type'],
+      desc: json['Message'],
+      loc: Location(json['Latitude'],json['Longitude']),
+    );
+  }
+
+}
+
+class Location {
+
+  final String lat;
+  final String long;
+
+  Location(this.lat, this.long);
+}
+
+Future<TrafficUpdateRaw> fetchPost() async {
+  final response =
+  await http.get('http://datamall2.mytransport.sg/ltaodataservice/TrafficIncidents',
+      headers:{"AccountKey":"<blank>"});
+  //await http.get('https://jsonplaceholder.typicode.com/posts/1');
+
+  if (response.statusCode == 200) {
+    // If the call to the server was successful, parse the JSON
+    return TrafficUpdateRaw.fromJson(json.decode(response.body));
+  } else {
+    // If that call was not successful, throw an error.
+    throw Exception('Failed to load post');
+  }
+}
+
+filterUpdates(List updates) {
+  return updates;
 }
