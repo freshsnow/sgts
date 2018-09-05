@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 
 void main() => runApp(new MyApp());
@@ -27,7 +28,8 @@ class MyApp extends StatelessWidget {
         // counter didn't reset back to zero; the application is not restarted.
         primarySwatch: Colors.green,
       ),
-      home: new MyHomePage(title: 'SG Traffic Situation'),
+      //home: new MyHomePage(title: 'SG Traffic Situation'),
+      home: new TrafficNewsScreen(),
 
     );
   }
@@ -119,10 +121,24 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class TrafficNewsScreen extends StatelessWidget {
+class TrafficNewsScreen extends StatefulWidget {
 
+  bool activateFilter = false;
+
+  @override
+  _TrafficNewsScreen createState() => new _TrafficNewsScreen(activateFilter);
+
+}
+
+class _TrafficNewsScreen extends State<TrafficNewsScreen> {
   //dummy data
   //final items = List<TrafficUpdateItem>.generate(10000, (i) => TrafficUpdateItem("Type $i", "desc $i", Location("100", "200")));
+
+  bool activateFilter=false;
+
+  _TrafficNewsScreen(filterState) {
+    this.activateFilter = filterState;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +146,16 @@ class TrafficNewsScreen extends StatelessWidget {
 
       appBar: AppBar(
         title: Text('Traffic News'),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(choices[0].icon),
+            onPressed: () {
+              setState(() => activateFilter = !activateFilter);
+              //_select(choices[0]);
+            },
+            color: activateFilter ? Colors.deepOrange : Colors.grey,
+          )
+        ],
       ),
       /*body: ListView.builder(
         itemCount: items.length,
@@ -152,6 +178,13 @@ class TrafficNewsScreen extends StatelessWidget {
                 return ListTile(
                   title: Text('${trafficUpdates[index]["Message"]}'),
                   subtitle: Text('${trafficUpdates[index]["Type"]}'),
+                  onTap: () {
+                    launchGoogleMap(trafficUpdates[index]["Latitude"].toString(),trafficUpdates[index]["Longitude"].toString());
+                    final snackBar = SnackBar(
+                        content: Text('${trafficUpdates[index]["Message"]}')
+                        );
+                        Scaffold.of(context).showSnackBar(snackBar);
+                  },
                 );
               },
             );
@@ -264,7 +297,7 @@ class Location {
 Future<TrafficUpdateRaw> fetchPost() async {
   final response =
   await http.get('http://datamall2.mytransport.sg/ltaodataservice/TrafficIncidents',
-      headers:{"AccountKey":"<blank>"});
+      headers:{"AccountKey":"<redact>"});
   //await http.get('https://jsonplaceholder.typicode.com/posts/1');
 
   if (response.statusCode == 200) {
@@ -279,3 +312,24 @@ Future<TrafficUpdateRaw> fetchPost() async {
 filterUpdates(List updates) {
   return updates;
 }
+
+launchGoogleMap(String lat, String long) async {
+  //const url = 'https://flutter.io';
+  String url = 'https://www.google.com/maps/search/?api=1&query=$lat,$long';
+  if (await canLaunch(url)) {
+    await launch(url);
+  } else {
+    throw 'Could not launch $url';
+  }
+}
+
+class Choice {
+  const Choice({this.title, this.icon});
+
+  final String title;
+  final IconData icon;
+}
+
+const List<Choice> choices = const <Choice>[
+  const Choice(title: 'Car', icon: Icons.filter_list)
+];
